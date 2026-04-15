@@ -73,20 +73,67 @@ INSERT INTO leave_requests VALUES
 (5,1,'ANNUAL','2024-04-15','2024-04-20','APPROVED');
 
 
+
+--1. Find the second highest salary from the Employee table
+    --Method 1
+    SELECT
+        emp.emp_id,
+        emp.name,
+        sal.salary,
+        DENSE_RANK() OVER (ORDER BY sal.salary DESC) AS sal_rank
+    FROM employees emp
+    INNER JOIN salaries sal ON emp.emp_id = sal.emp_id
+    QUALIFY sal_rank = 2;
+
+    --Method 2
+    SELECT MAX(sal.salary) AS second_highest
+    FROM employees emp
+    INNER JOIN salaries sal ON emp.emp_id = sal.emp_id
+    WHERE sal.salary < (SELECT MAX(salary) FROM salaries);
+    
+--2. Find the second highest salary from the Employee table department wise
+    SELECT
+        emp.name,
+        emp.role,
+        dept.dept_name,
+        sal.salary,
+        DENSE_RANK() OVER (PARTITION BY dept.dept_id ORDER BY sal.salary) AS sal_rank
+    FROM employees emp
+    INNER JOIN salaries sal ON emp.emp_id = sal.emp_id
+    INNER JOIN departments dept ON emp.dept_id = dept.dept_id
+    QUALIFY sal_rank = 2;
+    
+--3. Find employees earning above the average salary of their department
+SELECT
+    emp.name,
+    emp.role,
+    dept.dept_name,
+    sal.salary,
+    AVG(sal.salary) OVER (PARTITION BY dept.dept_id) AS dept_avg
+FROM employees emp
+INNER JOIN salaries sal ON emp.emp_id = sal.emp_id
+INNER JOIN departments dept ON emp.dept_id = dept.dept_id
+QUALIFY sal.salary > dept_avg;
+
+
+
 --Find employees earning above the average salary of their department
-SELECT e.name, d.dept_name, s.salary,
-  AVG(s.salary) OVER (PARTITION BY e.dept_id) AS dept_avg
+SELECT
+    e.name,
+    d.dept_name,
+    s.salary,
+    AVG(s.salary) OVER (PARTITION BY e.dept_id) AS dept_avg
 FROM employees e
-JOIN salaries s ON e.emp_id = s.emp_id
-JOIN departments d ON e.dept_id = d.dept_id
+INNER JOIN salaries s ON e.emp_id = s.emp_id
+INNER JOIN departments d ON e.dept_id = d.dept_id
 WHERE s.salary > (
-  SELECT AVG(s2.salary)
-  FROM salaries s2
-  JOIN employees e2 ON s2.emp_id = e2.emp_id
-  WHERE e2.dept_id = e.dept_id
+    SELECT AVG(s2.salary)
+    FROM salaries s2
+    INNER JOIN employees e2 ON s2.emp_id = e2.emp_id
+    WHERE e2.dept_id = e.dept_id
 );
 
---List each employee with their manager's name.
+--4. List each employee with their manager's name.
 SELECT
   e.name AS employee,
   e.role,
@@ -94,7 +141,6 @@ SELECT
 FROM employees e
 LEFT JOIN employees m ON e.manager_id = m.emp_id
 ORDER BY e.dept_id, e.emp_id;
-
 
 
 ---Categorize employees by tenure: <2 yrs = Junior, 2-5 yrs = Mid, >5 yrs = Senior.
